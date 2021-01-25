@@ -40,6 +40,16 @@ def bessel_bsc_te(n, m, axicon, v=0,
            * (lpi + ltau)
     return 1j * pre_mul * (t_plus - t_minus)
 
+def plane_wave_tm(n, m):
+       return .5 if np.abs(m) == 1 else 0
+
+def plane_wave_te(n, m):
+       if m == 1:
+              return -1j / 2
+       if m == -1:
+              return 1j / 2
+       return 0
+
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     

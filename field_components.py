@@ -23,6 +23,8 @@ from glmtscatt.specials import (_riccati_bessel_j, _riccati_bessel_y,
 from glmtscatt.utils import (get_max_it, one, exp_im, m_exp_im,
                              inverse, multiply_function)
 
+from scipy.special import riccati_jn
+
 def plane_wave_coefficient(degree, wave_number_k):
     """ Computes plane wave coefficient :math:`c_{n}^{pw}` """
     return (1 / (1j * wave_number_k)) \
@@ -30,7 +32,7 @@ def plane_wave_coefficient(degree, wave_number_k):
         * (2 * degree + 1) / (degree * (degree + 1))
 
 
-def radial_electric_i_tm(radial, theta, phi,
+def _radial_electric_i_tm(radial, theta, phi,
                               wave_number_k, degrees=[-1, 1],
                               bscs={}):
     """ Computes the radial component of incident electric field in TM mode.
@@ -58,6 +60,31 @@ def radial_electric_i_tm(radial, theta, phi,
         n += 1
 
     return wave_number_k * result
+
+
+def radial_electric_i_tm(radial, theta, phi,
+                              wave_number_k, degrees=[-1, 1],
+                              bscs={}):
+    """ Computes the radial component of incident electric field in TM mode.
+    """
+    result = 0
+    n = 1
+
+    max_it = get_max_it(radial, wave_number_k)
+    riccati_term = riccati_jn(n, wave_number_k * radial)[0]
+
+    while n <= max_it:
+        for m in degrees:
+            if n >= m:
+                increment = plane_wave_coefficient(n, wave_number_k) \
+                          * bscs[(n, m)] \
+                          * riccati_term[n - 1] \
+                          * legendre_p(n, abs(m), np.cos(theta)) \
+                          * np.exp(1j * m * phi)
+                result += increment
+        n += 1
+
+    return result / wave_number_k / radial ** 2
 
 def theta_electric_i_tm(radial, theta, phi, wave_number_k,
                         degrees=[-1, 1], bscs={}):
@@ -153,7 +180,8 @@ def phi_electric_i_te(radial, theta, phi, wave_number_k,
     # component to a small value.
     radial = radial or 1E-16
 
-    riccati_bessel_list = _riccati_bessel_j(get_max_it(radial, wave_number_k),
+    riccati_bessel_list = _riccati_bessel_j(get_max_it(radial,
+                                            wave_number_k),
                                             wave_number_k * radial)
     riccati_bessel = riccati_bessel_list[0]
 

@@ -5,12 +5,49 @@ Created on Sat Nov  9 11:14:14 2019
 @author: luizv
 """
 
-from scipy.special import loggamma, gammasgn, lpmv
+from scipy.special import (loggamma, gammasgn, lpmv, lpmn,
+                           riccati_jn, riccati_yn
+                        )
 import scipy.special as special
 import numpy as np
 
+# EPS_THETA = 1E-20
+
+
+def plane_wave_coefficient(degree, wave_number_k):
+    """ Computes plane wave coefficient :math:`c_{n}^{pw}` """
+    return (1 / (1j * wave_number_k)) \
+        * pow(-1j, degree) \
+        * (2 * degree + 1) / (degree * (degree + 1))
+
+def ltaumn(m, n, theta):
+    return -np.sin(theta) * lpmn(m, n, np.cos(theta))[1]
+    
+    # return lpmn(m, n, np.cos(theta))[1]
+
+    # lpmnp0 = lpmn(m, n, np.cos(theta))[0]
+    # lpmnp1 = lpmn(m, n + 1, np.cos(theta))[0]
+    # lpmnp0.resize(lpmnp1.shape)
+    # ns = np.arange(n + 2)
+    # ms = np.arange(m + 1)
+    # M, N = np.meshgrid(ms, ns)
+    # M, N = M.T, N.T
+    # return (N + 1) * np.cos(theta) * lpmnp0 - (N - M + 1) * lpmnp1
+
+    # res = np.zeros([m + 1, n + 1])
+    # for i in range(n + 1):
+    #     for j in range(m + 1):
+    #         # res[j][i] = ((i + j) * (i - j + 1) * lpmv(j - 1, i, np.cos(theta)) - lpmv(j + 1, i, np.cos(theta))) / 2
+    #         res[j][i] = ((j - i - 1) * lpmv(j, i + 1, np.cos(theta)) + (i + 1) * np.cos(theta) * lpmv(j, i, np.cos(theta))) /  np.sin(theta) ** 2
+    # return res
+
+def lpimn(m, n, theta):
+    if np.sin(theta) == 0:
+        return ltaumn(m, n, theta)
+    return lpmn(m, n, np.cos(theta))[0] / np.sin(theta)
 
 def factorial_quotient(num, den):
+    # DEPRECATED: USE mpmath.gammaprod
     return gammasgn(num + 1) * gammasgn(den + 1) * np.exp(
             loggamma(num + 1) - loggamma(den + 1))
 
@@ -25,7 +62,7 @@ def fac_plus_minus(n, m):
 def legendre_p(degree, order, argument):
     """ Associated Legendre function of integer order
     """
-    
+
     if degree < np.abs(order):
         return 0
     if order < 0:
@@ -64,3 +101,47 @@ def legendre_pi(degree, order, argument, overflow_protection=False):
             argument = -1 + 1E-16
     return legendre_p(degree, order, argument) \
            / (np.sqrt(1 - argument * argument))
+
+def mie_ans(n_max, k, radius, M, mu, musp):
+    a = k * radius
+    b = M * a
+    psi_a = riccati_jn(n_max, a)
+    psi_b = riccati_jn(n_max, b)
+    ksi_a = riccati_yn(n_max, a)
+
+    an = (musp * psi_a[0] * psi_b[1] - mu * M * psi_a[1] * psi_b[0]) \
+       / (musp * ksi_a[0] * psi_b[1] - mu * M * ksi_a[1] * psi_b[0])
+    return an
+
+def mie_bns(n_max, k, radius, M, mu, musp):
+    a = k * radius
+    b = M * a
+    psi_a = riccati_jn(n_max, a)
+    psi_b = riccati_jn(n_max, b)
+    ksi_a = riccati_yn(n_max, a)
+
+    bn = (mu * M * psi_a[0] * psi_b[1] - musp * psi_a[1] * psi_b[0]) \
+       / (mu * M * ksi_a[0] * psi_b[1] - musp * ksi_a[1] * psi_b[0])
+    return bn
+
+def mie_cns(n_max, k, radius, M, mu, musp):
+    a = k * radius
+    b = M * a
+    psi_a = riccati_jn(n_max, a)
+    psi_b = riccati_jn(n_max, b)
+    ksi_a = riccati_yn(n_max, a)
+
+    cn = M * musp * (ksi_a[0] * psi_a[1] - ksi_a[1] * psi_a[0]) \
+       / (musp * ksi_a[0] * psi_b[1] - mu * M * ksi_a[1] * psi_b[0])
+    return cn
+
+def mie_dns(n_max, k, radius, M, mu, musp):
+    a = k * radius
+    b = M * a
+    psi_a = riccati_jn(n_max, a)
+    psi_b = riccati_jn(n_max, b)
+    ksi_a = riccati_yn(n_max, a)
+
+    dn = mu * M * M * (ksi_a[0] * psi_a[1] - ksi_a[1] * psi_a[0]) \
+       / (mu * M * ksi_a[0] * psi_b[1] - musp * ksi_a[1] * psi_b[0])
+    return dn
